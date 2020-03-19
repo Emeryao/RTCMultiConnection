@@ -57,15 +57,17 @@
     </h1>
 
     <section class="make-center">
+        摄像头：
+        <select id="camera-select">
+            <option value="">请选择摄像头</option>
+        </select>
+        <br>
         <input style="display: none;" type="text" id="room-id" autocorrect="off" autocapitalize="off" size="20">
         <button id="open-room">开始</button>
         <button style="display: none;" id="join-room">加入</button>
         <button id="stop-stream">停止</button>
         <button id="up-post">上报</button>
         <button style="display: none;" id="open-or-join-room">Auto Open Or Join Room</button>
-        摄像头：
-        <select id="camera-select">
-        </select>
 
         <div id="videos-container" style="margin: 20px 0;"></div>
 
@@ -79,14 +81,21 @@
     <!-- custom layout for HTML5 audio/video elements -->
     <link rel="stylesheet" href="/dev/getHTMLMediaElement.css">
     <script src="/dev/getHTMLMediaElement.js"></script>
+
+    <script src="node_modules/recordrtc/RecordRTC.js"></script>
+
     <script>
         let roomId = '';
+        var cameraDeviceId = '';
         // ......................................................
         // .......................UI Code........................
         // ......................................................
         document.getElementById('open-room').onclick = function () {
             // disableInputButtons();
-
+            if (!cameraDeviceId) {
+                alert('请选择摄像头');
+                return;
+            }
             connection.open(roomId, function () {
                 showRoomURL(connection.sessionid);
             });
@@ -119,14 +128,14 @@
             });
         };
 
-
         document.getElementById('camera-select').onchange = () => {
+            cameraDeviceId = document.getElementById('camera-select').value;
             connection.mediaConstraints = {
                 audio: false,
                 video: {
                     mandatory: {},
                     optional: [{
-                        sourceId: document.getElementById('camera-select').value
+                        sourceId: cameraDeviceId,
                     }]
                 }
             };
@@ -142,9 +151,9 @@
 
             // close socket.io connection
             connection.closeSocket();
-            connection.open(roomId, function () {
-                showRoomURL(connection.sessionid);
-            });
+            // connection.open(roomId, function () {
+            //     showRoomURL(connection.sessionid);
+            // });
         }
 
         document.getElementById('stop-stream').onclick = () => {
@@ -160,6 +169,751 @@
 
             // close socket.io connection
             connection.closeSocket();
+        }
+
+
+
+        // document.getElementById('up-post').onclick = async () => {
+        //     let stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        //     let recorder = new RecordRTCPromisesHandler(stream, {
+        //         type: 'video',
+        //         mimeType: 'video/webm\;codecs=h264',
+        //         fileExtension: 'mp4',
+        //     });
+        //     recorder.startRecording();
+
+        //     const sleep = m => new Promise(r => setTimeout(r, m));
+        //     await sleep(15000);
+
+        //     await recorder.stopRecording();
+        //     let blob = await recorder.getBlob();
+        //     invokeSaveAsDialog(blob);
+        // }
+
+        var recordingPlayer;
+        var type = 'video';
+        var recorderType;
+
+        btnStartRecording = document.getElementById('up-post');
+
+        btnStartRecording.onclick = function (event) {
+            if (!cameraDeviceId) {
+                alert('请选择摄像头');
+                return;
+            }
+            var video = document.createElement('video');
+            video.controls = false;
+            var mediaElement = getHTMLMediaElement(video, {
+                title: 'Recording status: inactive',
+                buttons: ['full-screen'/*, 'take-snapshot'*/],
+                showOnMouseEnter: false,
+                width: 360,
+                onTakeSnapshot: function () {
+                    var canvas = document.createElement('canvas');
+                    canvas.width = mediaElement.clientWidth;
+                    canvas.height = mediaElement.clientHeight;
+
+                    var context = canvas.getContext('2d');
+                    context.drawImage(recordingPlayer, 0, 0, canvas.width, canvas.height);
+
+                    window.open(canvas.toDataURL('image/png'));
+                }
+            });
+            document.getElementById('videos-container').appendChild(mediaElement);
+
+            recordingPlayer = mediaElement.media;
+
+
+            var button = btnStartRecording;
+
+            if (button.innerHTML === 'Stop Recording') {
+                // btnPauseRecording.style.display = 'none';
+                button.disabled = true;
+                button.disableStateWaiting = true;
+                setTimeout(function () {
+                    button.disabled = false;
+                    button.disableStateWaiting = false;
+                }, 2000);
+
+                // button.innerHTML = 'Start Recording';
+
+                function stopStream() {
+                    if (button.stream && button.stream.stop) {
+                        button.stream.stop();
+                        button.stream = null;
+                    }
+
+                    if (button.stream instanceof Array) {
+                        button.stream.forEach(function (stream) {
+                            stream.stop();
+                        });
+                        button.stream = null;
+                    }
+
+                    videoBitsPerSecond = null;
+                    var html = 'Recording status: stopped';
+                    html += '<br>Size: ' + bytesToSize(button.recordRTC.getBlob().size);
+                    // recordingPlayer.parentNode.parentNode.querySelector('h2').innerHTML = html;
+                }
+
+                if (button.recordRTC) {
+                    if (button.recordRTC.length) {
+                        button.recordRTC[0].stopRecording(function (url) {
+                            if (!button.recordRTC[1]) {
+                                button.recordingEndedCallback(url);
+                                stopStream();
+
+                                // saveToDiskOrOpenNewTab(button.recordRTC[0]);
+                                return;
+                            }
+
+                            button.recordRTC[1].stopRecording(function (url) {
+                                button.recordingEndedCallback(url);
+                                stopStream();
+                            });
+                        });
+                    }
+                    else {
+                        button.recordRTC.stopRecording(function (url) {
+                            if (button.blobs && button.blobs.length) {
+                                var blob = new File(button.blobs, getFileName(fileExtension), {
+                                    type: mimeType
+                                });
+
+                                button.recordRTC.getBlob = function () {
+                                    return blob;
+                                };
+
+                                url = URL.createObjectURL(blob);
+                            }
+
+                            // if (chkFixSeeking.checked === true) {
+                            //     // to fix video seeking issues
+                            //     getSeekableBlob(button.recordRTC.getBlob(), function (seekableBlob) {
+                            //         button.recordRTC.getBlob = function () {
+                            //             return seekableBlob;
+                            //         };
+
+                            //         url = URL.createObjectURL(seekableBlob);
+
+                            //         button.recordingEndedCallback(url);
+                            //         saveToDiskOrOpenNewTab(button.recordRTC);
+                            //         stopStream();
+                            //     })
+                            //     return;
+                            // }
+
+                            button.recordingEndedCallback(url);
+                            // saveToDiskOrOpenNewTab(button.recordRTC);
+                            stopStream();
+                        });
+                    }
+                }
+
+                return;
+            }
+
+            if (!event) return;
+
+            button.disabled = true;
+
+            var commonConfig = {
+                onMediaCaptured: function (stream) {
+                    button.stream = stream;
+                    if (button.mediaCapturedCallback) {
+                        button.mediaCapturedCallback();
+                    }
+
+                    // button.innerHTML = 'Stop Recording';
+                    // button.disabled = false;
+
+                    // chkFixSeeking.parentNode.style.display = 'none';
+                },
+                onMediaStopped: function () {
+                    button.innerHTML = 'Start Recording';
+
+                    if (!button.disableStateWaiting) {
+                        button.disabled = false;
+                    }
+
+                    // chkFixSeeking.parentNode.style.display = 'inline-block';
+                },
+                onMediaCapturingFailed: function (error) {
+                    console.error('onMediaCapturingFailed:', error);
+
+                    if (error.toString().indexOf('no audio or video tracks available') !== -1) {
+                        alert('RecordRTC failed to start because there are no audio or video tracks available.');
+                    }
+
+                    if (error.name === 'PermissionDeniedError' && DetectRTC.browser.name === 'Firefox') {
+                        alert('Firefox requires version >= 52. Firefox also requires HTTPs.');
+                    }
+
+                    commonConfig.onMediaStopped();
+                }
+            };
+
+            mimeType = 'video/webm\;codecs=h264';
+            // mimeType = 'video/mpeg';
+            fileExtension = 'mp4';
+
+            // if (mediaContainerFormat.value === 'h264') {
+            //     mimeType = 'video/webm\;codecs=h264';
+            //     fileExtension = 'mp4';
+
+            //     // video/mp4;codecs=avc1
+            //     if (isMimeTypeSupported('video/mpeg')) {
+            //         mimeType = 'video/mpeg';
+            //     }
+            // }
+
+            // if (mediaContainerFormat.value === 'mkv' && isMimeTypeSupported('video/x-matroska;codecs=avc1')) {
+            //     mimeType = 'video/x-matroska;codecs=avc1';
+            //     fileExtension = 'mkv';
+            // }
+
+            // if (mediaContainerFormat.value === 'vp8' && isMimeTypeSupported('video/webm\;codecs=vp8')) {
+            //     mimeType = 'video/webm\;codecs=vp8';
+            //     fileExtension = 'webm';
+            //     recorderType = null;
+            //     type = 'video';
+            // }
+
+            // if (mediaContainerFormat.value === 'vp9' && isMimeTypeSupported('video/webm\;codecs=vp9')) {
+            //     mimeType = 'video/webm\;codecs=vp9';
+            //     fileExtension = 'webm';
+            //     recorderType = null;
+            //     type = 'video';
+            // }
+
+            // if (mediaContainerFormat.value === 'pcm') {
+            //     mimeType = 'audio/wav';
+            //     fileExtension = 'wav';
+            //     recorderType = StereoAudioRecorder;
+            //     type = 'audio';
+            // }
+
+            // if (mediaContainerFormat.value === 'opus' || mediaContainerFormat.value === 'ogg') {
+            //     if (isMimeTypeSupported('audio/webm')) {
+            //         mimeType = 'audio/webm';
+            //         fileExtension = 'webm'; // webm
+            //     }
+
+            //     if (isMimeTypeSupported('audio/ogg')) {
+            //         mimeType = 'audio/ogg; codecs=opus';
+            //         fileExtension = 'ogg'; // ogg
+            //     }
+
+            //     recorderType = null;
+            //     type = 'audio';
+            // }
+
+            // if (mediaContainerFormat.value === 'whammy') {
+            //     mimeType = 'video/webm';
+            //     fileExtension = 'webm';
+            //     recorderType = WhammyRecorder;
+            //     type = 'video';
+            // }
+
+            // if (mediaContainerFormat.value === 'WebAssembly') {
+            //     mimeType = 'video/webm';
+            //     fileExtension = 'webm';
+            //     recorderType = WebAssemblyRecorder;
+            //     type = 'video';
+            // }
+
+            // if (mediaContainerFormat.value === 'gif') {
+            //     mimeType = 'image/gif';
+            //     fileExtension = 'gif';
+            //     recorderType = GifRecorder;
+            //     type = 'gif';
+            // }
+
+            // if (mediaContainerFormat.value === 'default') {
+            //     mimeType = 'video/webm';
+            //     fileExtension = 'webm';
+            //     recorderType = null;
+            //     type = 'video';
+            // }
+
+            captureAudioPlusVideo(commonConfig);
+
+            button.mediaCapturedCallback = function () {
+                if (typeof MediaRecorder === 'undefined') { // opera or chrome etc.
+                    button.recordRTC = [];
+
+                    if (!params.bufferSize) {
+                        // it fixes audio issues whilst recording 720p
+                        params.bufferSize = 16384;
+                    }
+
+                    var options = {
+                        type: 'audio', // hard-code to set "audio"
+                        leftChannel: params.leftChannel || false,
+                        disableLogs: params.disableLogs || false,
+                        video: recordingPlayer
+                    };
+
+                    if (params.sampleRate) {
+                        options.sampleRate = parseInt(params.sampleRate);
+                    }
+
+                    if (params.bufferSize) {
+                        options.bufferSize = parseInt(params.bufferSize);
+                    }
+
+                    if (params.frameInterval) {
+                        options.frameInterval = parseInt(params.frameInterval);
+                    }
+
+                    if (recorderType) {
+                        options.recorderType = recorderType;
+                    }
+
+                    if (videoBitsPerSecond) {
+                        options.videoBitsPerSecond = videoBitsPerSecond;
+                    }
+
+                    options.ignoreMutedMedia = false;
+                    var audioRecorder = RecordRTC(button.stream, options);
+
+                    options.type = type;
+                    var videoRecorder = RecordRTC(button.stream, options);
+
+                    // to sync audio/video playbacks in browser!
+                    videoRecorder.initRecorder(function () {
+                        audioRecorder.initRecorder(function () {
+                            audioRecorder.startRecording();
+                            videoRecorder.startRecording();
+                            // btnPauseRecording.style.display = '';
+                        });
+                    });
+
+                    button.recordRTC.push(audioRecorder, videoRecorder);
+
+                    button.recordingEndedCallback = function () {
+                        var audio = new Audio();
+                        audio.src = audioRecorder.toURL();
+                        audio.controls = true;
+                        audio.autoplay = true;
+
+                        recordingPlayer.parentNode.appendChild(document.createElement('hr'));
+                        recordingPlayer.parentNode.appendChild(audio);
+
+                        if (audio.paused) audio.play();
+                    };
+                    return;
+                }
+
+                var options = {
+                    type: type,
+                    mimeType: mimeType,
+                    disableLogs: params.disableLogs || false,
+                    getNativeBlob: false, // enable it for longer recordings
+                    video: recordingPlayer
+                };
+
+                if (recorderType) {
+                    options.recorderType = recorderType;
+
+                    if (recorderType == WhammyRecorder || recorderType == GifRecorder || recorderType == WebAssemblyRecorder) {
+                        options.canvas = options.video = {
+                            width: defaultWidth || 320,
+                            height: defaultHeight || 240
+                        };
+                    }
+                }
+
+                if (videoBitsPerSecond) {
+                    options.videoBitsPerSecond = videoBitsPerSecond;
+                }
+                var timeSlice = false;
+                if (timeSlice && typeof MediaRecorder !== 'undefined') {
+                    options.timeSlice = timeSlice;
+                    button.blobs = [];
+                    options.ondataavailable = function (blob) {
+                        button.blobs.push(blob);
+                    };
+                }
+
+                options.ignoreMutedMedia = false;
+                button.recordRTC = RecordRTC(button.stream, options);
+
+                button.recordingEndedCallback = function (url) {
+                    setVideoURL(url);
+                };
+
+                button.recordRTC.startRecording();
+                // btnPauseRecording.style.display = '';
+                // recordingPlayer.parentNode.parentNode.querySelector('h2').innerHTML = '<img src="https://www.webrtc-experiment.com/images/progress.gif">';
+            };
+
+
+            setTimeout(() => {
+                var button = btnStartRecording;
+                // btnPauseRecording.style.display = 'none';
+                button.disabled = true;
+                button.disableStateWaiting = true;
+                setTimeout(function () {
+                    button.disabled = false;
+                    button.disableStateWaiting = false;
+                }, 2000);
+
+                button.innerHTML = 'Start Recording';
+
+                function stopStream() {
+                    if (button.stream && button.stream.stop) {
+                        button.stream.stop();
+                        button.stream = null;
+                    }
+
+                    if (button.stream instanceof Array) {
+                        button.stream.forEach(function (stream) {
+                            stream.stop();
+                        });
+                        button.stream = null;
+                    }
+
+                    videoBitsPerSecond = null;
+                    var html = 'Recording status: stopped';
+                    html += '<br>Size: ' + bytesToSize(button.recordRTC.getBlob().size);
+                    // recordingPlayer.parentNode.parentNode.querySelector('h2').innerHTML = html;
+                }
+
+                if (button.recordRTC) {
+                    if (button.recordRTC.length) {
+                        button.recordRTC[0].stopRecording(function (url) {
+                            if (!button.recordRTC[1]) {
+                                button.recordingEndedCallback(url);
+                                stopStream();
+
+                                // saveToDiskOrOpenNewTab(button.recordRTC[0]);
+                                return;
+                            }
+
+                            button.recordRTC[1].stopRecording(function (url) {
+                                button.recordingEndedCallback(url);
+                                stopStream();
+                            });
+                        });
+                    }
+                    else {
+                        button.recordRTC.stopRecording(function (url) {
+                            if (button.blobs && button.blobs.length) {
+                                var blob = new File(button.blobs, getFileName(fileExtension), {
+                                    type: mimeType
+                                });
+
+                                button.recordRTC.getBlob = function () {
+                                    return blob;
+                                };
+
+                                url = URL.createObjectURL(blob);
+                            }
+
+                            // if (chkFixSeeking.checked === true) {
+                            //     // to fix video seeking issues
+                            //     getSeekableBlob(button.recordRTC.getBlob(), function (seekableBlob) {
+                            //         button.recordRTC.getBlob = function () {
+                            //             return seekableBlob;
+                            //         };
+
+                            //         url = URL.createObjectURL(seekableBlob);
+
+                            //         button.recordingEndedCallback(url);
+                            //         saveToDiskOrOpenNewTab(button.recordRTC);
+                            //         stopStream();
+                            //     })
+                            //     return;
+                            // }
+
+                            button.recordingEndedCallback(url);
+                            // saveToDiskOrOpenNewTab(button.recordRTC);
+
+                            stopStream();
+                            if (!button.recordRTC) return alert('No recording found.');
+                            var fileName = getFileName(fileExtension);
+                            var file = new File([button.recordRTC.getBlob()], fileName, {
+                                type: mimeType
+                            });
+
+                            invokeSaveAsDialog(file, file.name);
+                        });
+                    }
+                }
+                return;
+            }, 11000);
+        };
+
+        function captureAudioPlusVideo(config) {
+            captureUserMedia({ video: true, audio: true }, function (audioVideoStream) {
+                config.onMediaCaptured(audioVideoStream);
+
+                if (audioVideoStream instanceof Array) {
+                    audioVideoStream.forEach(function (stream) {
+                        addStreamStopListener(stream, function () {
+                            config.onMediaStopped();
+                        });
+                    });
+                    return;
+                }
+
+                addStreamStopListener(audioVideoStream, function () {
+                    config.onMediaStopped();
+                });
+            }, function (error) {
+                config.onMediaCapturingFailed(error);
+            });
+        }
+
+        function captureUserMedia(mediaConstraints, successCallback, errorCallback) {
+            if (mediaConstraints.video == true) {
+                mediaConstraints.video = {
+                    deviceId: cameraDeviceId
+                };
+            }
+
+            setVideoBitrates();
+
+            mediaConstraints = getVideoResolutions(mediaConstraints);
+            mediaConstraints = getFrameRates(mediaConstraints);
+
+            var isBlackBerry = !!(/BB10|BlackBerry/i.test(navigator.userAgent || ''));
+            if (isBlackBerry && !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)) {
+                navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+                navigator.getUserMedia(mediaConstraints, successCallback, errorCallback);
+                return;
+            }
+
+            navigator.mediaDevices.getUserMedia(mediaConstraints).then(function (stream) {
+                successCallback(stream);
+
+                setVideoURL(stream, true);
+            }).catch(function (error) {
+                if (error && (error.name === 'ConstraintNotSatisfiedError' || error.name === 'OverconstrainedError')) {
+                    alert('Your camera or browser does NOT supports selected resolutions or frame-rates. \n\nPlease select "default" resolutions.');
+                }
+                else if (error && error.message) {
+                    alert(error.message);
+                }
+                else {
+                    alert('Unable to make getUserMedia request. Please check browser console logs.');
+                }
+
+                errorCallback(error);
+            });
+        }
+
+        function setVideoBitrates() {
+            // var select = document.querySelector('.media-bitrates');
+            var value = 'default';
+
+            if (value == 'default') {
+                videoBitsPerSecond = null;
+                return;
+            }
+
+            videoBitsPerSecond = parseInt(value);
+        }
+
+        function getFrameRates(mediaConstraints) {
+            if (!mediaConstraints.video) {
+                return mediaConstraints;
+            }
+
+            // var select = document.querySelector('.media-framerates');
+            var value = 'default';
+
+            if (value == 'default') {
+                return mediaConstraints;
+            }
+
+            value = parseInt(value);
+
+            if (DetectRTC.browser.name === 'Firefox') {
+                mediaConstraints.video.frameRate = value;
+                return mediaConstraints;
+            }
+
+            if (!mediaConstraints.video.mandatory) {
+                mediaConstraints.video.mandatory = {};
+                mediaConstraints.video.optional = [];
+            }
+
+            var isScreen = recordingMedia.value.toString().toLowerCase().indexOf('screen') != -1;
+            if (isScreen) {
+                mediaConstraints.video.mandatory.maxFrameRate = value;
+            }
+            else {
+                mediaConstraints.video.mandatory.minFrameRate = value;
+            }
+
+            return mediaConstraints;
+        }
+
+        function getVideoResolutions(mediaConstraints) {
+            if (!mediaConstraints.video) {
+                return mediaConstraints;
+            }
+
+            // var select = document.querySelector('.media-resolutions');
+            var value = 'default';
+
+            if (value == 'default') {
+                return mediaConstraints;
+            }
+
+            value = value.split('x');
+
+            if (value.length != 2) {
+                return mediaConstraints;
+            }
+
+            defaultWidth = parseInt(value[0]);
+            defaultHeight = parseInt(value[1]);
+
+            if (DetectRTC.browser.name === 'Firefox') {
+                mediaConstraints.video.width = defaultWidth;
+                mediaConstraints.video.height = defaultHeight;
+                return mediaConstraints;
+            }
+
+            if (!mediaConstraints.video.mandatory) {
+                mediaConstraints.video.mandatory = {};
+                mediaConstraints.video.optional = [];
+            }
+
+            var isScreen = recordingMedia.value.toString().toLowerCase().indexOf('screen') != -1;
+
+            if (isScreen) {
+                mediaConstraints.video.mandatory.maxWidth = defaultWidth;
+                mediaConstraints.video.mandatory.maxHeight = defaultHeight;
+            }
+            else {
+                mediaConstraints.video.mandatory.minWidth = defaultWidth;
+                mediaConstraints.video.mandatory.minHeight = defaultHeight;
+            }
+
+            return mediaConstraints;
+        }
+
+        function addStreamStopListener(stream, callback) {
+            stream.addEventListener('ended', function () {
+                callback();
+                callback = function () { };
+            }, false);
+            stream.addEventListener('inactive', function () {
+                callback();
+                callback = function () { };
+            }, false);
+            stream.getTracks().forEach(function (track) {
+                track.addEventListener('ended', function () {
+                    callback();
+                    callback = function () { };
+                }, false);
+                track.addEventListener('inactive', function () {
+                    callback();
+                    callback = function () { };
+                }, false);
+            });
+        }
+
+        function getURL(arg) {
+            var url = arg;
+
+            if (arg instanceof Blob || arg instanceof File) {
+                url = URL.createObjectURL(arg);
+            }
+
+            if (arg instanceof RecordRTC || arg.getBlob) {
+                url = URL.createObjectURL(arg.getBlob());
+            }
+
+            if (arg instanceof MediaStream || arg.getTracks) {
+                // url = URL.createObjectURL(arg);
+            }
+
+            return url;
+        }
+
+        function setVideoURL(arg, forceNonImage) {
+            var url = getURL(arg);
+
+            var parentNode = recordingPlayer.parentNode;
+            parentNode.removeChild(recordingPlayer);
+            parentNode.innerHTML = '';
+
+            var elem = 'video';
+            if (type == 'gif' && !forceNonImage) {
+                elem = 'img';
+            }
+            if (type == 'audio') {
+                elem = 'audio';
+            }
+
+            recordingPlayer = document.createElement(elem);
+
+            if (arg instanceof MediaStream) {
+                recordingPlayer.muted = true;
+            }
+
+            recordingPlayer.addEventListener('loadedmetadata', function () {
+                if (navigator.userAgent.toLowerCase().indexOf('android') == -1) return;
+
+                // android
+                setTimeout(function () {
+                    if (typeof recordingPlayer.play === 'function') {
+                        recordingPlayer.play();
+                    }
+                }, 2000);
+            }, false);
+
+            recordingPlayer.poster = '';
+
+            if (arg instanceof MediaStream) {
+                recordingPlayer.srcObject = arg;
+            }
+            else {
+                recordingPlayer.src = url;
+            }
+
+            if (typeof recordingPlayer.play === 'function') {
+                recordingPlayer.play();
+            }
+
+            recordingPlayer.addEventListener('ended', function () {
+                url = getURL(arg);
+
+                if (arg instanceof MediaStream) {
+                    recordingPlayer.srcObject = arg;
+                }
+                else {
+                    recordingPlayer.src = url;
+                }
+            });
+
+            parentNode.appendChild(recordingPlayer);
+        }
+
+        function getRandomString() {
+            if (window.crypto && window.crypto.getRandomValues && navigator.userAgent.indexOf('Safari') === -1) {
+                var a = window.crypto.getRandomValues(new Uint32Array(3)),
+                    token = '';
+                for (var i = 0, l = a.length; i < l; i++) {
+                    token += a[i].toString(36);
+                }
+                return token;
+            } else {
+                return (Math.random() * new Date().getTime()).toString(36).replace(/\./g, '');
+            }
+        }
+
+        function getFileName(fileExtension) {
+            var d = new Date();
+            var year = d.getUTCFullYear();
+            var month = d.getUTCMonth();
+            var date = d.getUTCDate();
+            return 'RecordRTC-' + year + month + date + '-' + getRandomString() + '.' + fileExtension;
         }
 
         // ......................................................
