@@ -89,7 +89,7 @@
     <link rel="stylesheet" href="/dev/getHTMLMediaElement.css">
     <script src="/dev/getHTMLMediaElement.js"></script>
 
-    <script src="node_modules/recordrtc/RecordRTC.js"></script>
+    <script src="/node_modules/recordrtc/RecordRTC.js"></script>
 
     <script>
         let roomId = '';
@@ -349,7 +349,7 @@
                     // chkFixSeeking.parentNode.style.display = 'none';
                 },
                 onMediaStopped: function () {
-                    button.innerHTML = 'Start Recording';
+                    // button.innerHTML = 'Start Recording';
 
                     if (!button.disableStateWaiting) {
                         button.disabled = false;
@@ -578,7 +578,7 @@
                     button.disableStateWaiting = false;
                 }, 2000);
 
-                button.innerHTML = 'Start Recording';
+                // button.innerHTML = 'Start Recording';
 
                 function stopStream() {
                     if (button.stream && button.stream.stop) {
