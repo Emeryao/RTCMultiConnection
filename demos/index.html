@@ -150,7 +150,7 @@
         document.getElementById('camera-select').onchange = () => {
             cameraDeviceId = document.getElementById('camera-select').value;
             connection.mediaConstraints = {
-                audio: false,
+                audio: true,
                 video: {
                     mandatory: {},
                     optional: [{
@@ -955,7 +955,7 @@
         // };
 
         connection.session = {
-            audio: false,
+            audio: true,
             video: true,
             oneway: true
         };
