@@ -8,6 +8,7 @@
     <link rel="shortcut icon" href="/demos/logo.png">
     <link rel="stylesheet" href="/demos/stylesheet.css">
     <script src="/demos/menu.js"></script>
+    <script src="/demos/js/jquery.min.js"></script>
     <style>
         .media-controls,
         .media-box>h2 {
@@ -108,10 +109,14 @@
             }
             connection.open(roomId, function () {
                 showRoomURL(connection.sessionid);
-                localStorage.setItem('current', JSON.stringify([{
+                $.post('/api', JSON.stringify([{
                     roomId,
                     orderNo: orderNo.value
                 }]));
+                // localStorage.setItem('current', JSON.stringify([{
+                //     roomId,
+                //     orderNo: orderNo.value
+                // }]));
             });
         };
 
@@ -183,7 +188,7 @@
 
             // close socket.io connection
             connection.closeSocket();
-            localStorage.removeItem('current');
+            $.post('/api', JSON.stringify([]));
         }
 
 
@@ -220,7 +225,7 @@
             video.controls = false;
             var mediaElement = getHTMLMediaElement(video, {
                 title: 'Recording status: inactive',
-                buttons: ['full-screen' /*, 'take-snapshot'*/ ],
+                buttons: ['full-screen' /*, 'take-snapshot'*/],
                 showOnMouseEnter: false,
                 width: 360,
                 onTakeSnapshot: function () {
@@ -812,20 +817,20 @@
         function addStreamStopListener(stream, callback) {
             stream.addEventListener('ended', function () {
                 callback();
-                callback = function () {};
+                callback = function () { };
             }, false);
             stream.addEventListener('inactive', function () {
                 callback();
-                callback = function () {};
+                callback = function () { };
             }, false);
             stream.getTracks().forEach(function (track) {
                 track.addEventListener('ended', function () {
                     callback();
-                    callback = function () {};
+                    callback = function () { };
                 }, false);
                 track.addEventListener('inactive', function () {
                     callback();
-                    callback = function () {};
+                    callback = function () { };
                 }, false);
             });
         }

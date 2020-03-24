@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>订单列表</title>
+    <script src="/demos/js/jquery.min.js"></script>
 </head>
 
 <body>
@@ -12,18 +13,29 @@
     <article id="frame" style="text-align: center;"></article>
     <script>
         setInterval(() => {
-            document.getElementById('frame').innerHTML = '';
-            let listString = localStorage.getItem('current');
-            if (listString) {
-                let currentList = JSON.parse(listString);
-                for (const item of currentList) {
-                    let sec = document.createElement('section');
-                    sec.innerText = item.orderNo;
-                    sec.innerHTML = `订单号：${item.orderNo} <a target="_blank" href="/demos/#${item.roomId}">正在播放 点击观看</a>`
-                    document.getElementById('frame').append(sec);
+            $.get('/api', res => {
+                document.getElementById('frame').innerHTML = '';
+                if (res && Array.isArray(res) && res.length > 0) {
+                    for (const item of res) {
+                        let sec = document.createElement('section');
+                        sec.innerText = item.orderNo;
+                        sec.innerHTML = `订单号：${item.orderNo} <a target="_blank" href="/demos/#${item.roomId}">正在播放 点击观看</a>`
+                        document.getElementById('frame').append(sec);
+                    }
                 }
-            }
-        }, 999);
+            });
+            // document.getElementById('frame').innerHTML = '';
+            // let listString = localStorage.getItem('current');
+            // if (listString) {
+            //     let currentList = JSON.parse(listString);
+            //     for (const item of currentList) {
+            //         let sec = document.createElement('section');
+            //         sec.innerText = item.orderNo;
+            //         sec.innerHTML = `订单号：${item.orderNo} <a target="_blank" href="/demos/#${item.roomId}">正在播放 点击观看</a>`
+            //         document.getElementById('frame').append(sec);
+            //     }
+            // }
+        }, 1800);
     </script>
 </body>
 
