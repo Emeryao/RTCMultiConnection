@@ -6,12 +6,12 @@
     "enableAdmin": "true",
     "enableLogs": "false",
     "homePage": "/demos/index.html",
-    "isUseHTTPs": "false",
-    "port": "9001",
+    "isUseHTTPs": "true",
+    "port": "9009",
     "socketCustomEvent": "RTCMultiConnection-Custom-Message",
     "socketMessageEvent": "RTCMultiConnection-Message",
     "socketURL": "/",
     "sslCabundle": "",
-    "sslCert": "./fake-keys/certificate.pem",
-    "sslKey": "./fake-keys/privatekey.pem"
+    "sslCert": "/etc/letsencrypt/truman.live/truman.live.crt",
+    "sslKey": "/etc/letsencrypt/truman.live/truman.live.key"
 }

@@ -1,4 +1,4 @@
-FROM node:13.10.1-alpine3.11
+FROM node:14.0.0-alpine3.11
 
 WORKDIR /app
 
@@ -8,4 +8,4 @@ RUN npm ci --no-progress --slient
 
 EXPOSE 9009
 
-CMD ["node","server.js","--port=9009","--ssl"]
+CMD ["node","server.js"]
