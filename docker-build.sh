@@ -1,6 +1,5 @@
-docker build -t emery/live-rtc .
+docker build -t byzan/truman/rtc-signal:nightly .
 
-docker container rm -f live-rtc-demo
+# docker run -d --name live-rtc-demo -p 9009:9009 -v /srv/seahaven/letsencrypt:/etc/letsencrypt emery/live-rtc
 
-docker run -d --name live-rtc-demo -p 9009:9009 -v /srv/seahaven/letsencrypt:/etc/letsencrypt emery/live-rtc
-
+docker stack up -c ./trm-rtc_signal.yml trm-rtc

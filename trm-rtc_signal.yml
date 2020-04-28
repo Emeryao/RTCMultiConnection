@@ -1,0 +1,34 @@
+version: "3.8"
+
+networks:
+  overlay:
+    driver: overlay
+    attachable: true
+
+services:
+  signal:
+    image: byzan/truman/rtc-signal:nightly
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+    networks:
+      - overlay
+    deploy:
+      mode: global
+      update_config:
+        failure_action: continue
+        order: stop-first
+      placement:
+        constraints:
+          - node.role == manager
+    ports:
+      - target: 9009
+        published: 9009
+        protocol: tcp
+        mode: host
+    volumes:
+      - /srv/seahaven/letsencrypt:/etc/letsencrypt
+    environment:
+      - TZ=Asia/Shanghai
