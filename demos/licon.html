@@ -241,14 +241,17 @@
         //     ]
         // }];
 
+        connection.iceServers = [];
+
         connection.iceServers = [{
-            'urls': [
-                'stun:coturn.truman.live:3478',
-                'stun:coturn.truman.live:3478?transport=udp',
-                'turn:coturn.truman.live:3478',
-                'turn:coturn.truman.live:3478?transport=udp',
-            ]
+            'urls': 'stun:coturn.truman.live:3478',
         }];
+
+        connection.iceServers.push({
+            urls: 'turn:coturn.truman.live:3478',
+            username: 'truman',
+            credential: 'truman',
+        });
 
         connection.videosContainer = document.getElementById('videos-container');
         connection.onstream = function (event) {
