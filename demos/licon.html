@@ -223,35 +223,44 @@
 
         // https://www.rtcmulticonnection.org/docs/iceServers/
         // use your own TURN-server here!
-        // connection.iceServers = [{
-        //     'urls': [
-        //         'stun:stun.l.google.com:19302',
-        //         'stun:stun1.l.google.com:19302',
-        //         'stun:stun2.l.google.com:19302',
-        //         'stun:stun.l.google.com:19302?transport=udp',
-        //     ]
-        // }];
-
-        // connection.iceServers = [{
-        //     'urls': [
-        //         'stun:74.125.203.127:19302',
-        //         'stun:108.177.10.127:19302',
-        //         'stun:74.125.202.127:19302',
-        //         'stun:74.125.203.127:19302?transport=udp',
-        //     ]
-        // }];
-
-        connection.iceServers = [];
-
         connection.iceServers = [{
-            'urls': 'stun:coturn.truman.live:3478',
+            'urls': [
+                'stun:stun.l.google.com:19302',
+                'stun:stun1.l.google.com:19302',
+                'stun:stun2.l.google.com:19302',
+                'stun:stun.l.google.com:19302?transport=udp',
+            ]
         }];
 
         connection.iceServers.push({
-            urls: 'turn:coturn.truman.live:3478',
-            username: 'truman',
-            credential: 'truman',
+            'urls': [
+                'stun:coturn.truman.live:3478?transport=tcp',
+            ]
         });
+
+        connection.iceServers.push({
+            urls: 'turn:coturn.truman.live:3478?transport=tcp',
+            username: 'truman',
+            credential: 'truman123',
+        });
+
+
+        // connection.iceServers.push({
+        //     urls: 'turn:192.158.29.39:3478?transport=udp',
+        //     username: '28224511:1379330808',
+        //     credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+        // },
+        //     {
+        //         url: 'turn:192.158.29.39:3478?transport=tcp',
+        //         credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+        //         username: '28224511:1379330808',
+        //     });
+
+        // connection.iceServers.push({
+        //     urls: 'turn:numb.viagenie.ca',
+        //     username: 'webrtc@live.com',
+        //     credential: 'muazkh',
+        // });
 
         connection.videosContainer = document.getElementById('videos-container');
         connection.onstream = function (event) {
