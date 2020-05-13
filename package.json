@@ -1,5 +1,5 @@
 {
-    "name": "rtcmulticonnection",
+    "name": "rtcmulticonnection-demo",
     "preferGlobal": false,
     "version": "3.7.0",
     "author": {
@@ -54,6 +54,7 @@
         "getstats": "latest",
         "multistreamsmixer": "latest",
         "recordrtc": "latest",
+        "rtcmulticonnection": "^3.7.0",
         "rtcmulticonnection-server": "latest",
         "socket.io": "latest",
         "webrtc-adapter": "latest"
